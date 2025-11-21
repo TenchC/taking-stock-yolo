@@ -40,6 +40,30 @@ def load_images_and_labels():
     labels = [f for f in os.listdir(LABELS_DIR) if f != '.DS_Store']
     return images, labels
 
+def move_file(filename, source_dir, dest_dir):
+    """
+    Move a file from source directory to destination directory.
+    @param filename: The name of the file to move
+    @param source_dir: The source directory path (string or Path)
+    @param dest_dir: The destination directory path (string or Path)
+    @return: True if file was moved successfully, False otherwise
+    """
+    if filename is None:
+        return False
+    
+    src_path = Path(source_dir) / filename
+    if not src_path.exists():
+        return False
+    
+    dest_path = Path(dest_dir) / filename
+    # Ensure destination directory exists
+    if not dest_path.parent.exists():
+        print(f"Warning: Directory {dest_path.parent} does not exist. Creating it.")
+    dest_path.parent.mkdir(parents=True, exist_ok=True)
+    
+    src_path.replace(dest_path)
+    return True
+
 def move_multiple_label_files(image_file, label_file):
     """
     Move image and label files with multiple labels to OUTPUT_DIR/multiple_label/{images,labels}
@@ -48,24 +72,14 @@ def move_multiple_label_files(image_file, label_file):
     """
     multiple_label_dir_images = Path(OUTPUT_DIR) / 'multiple_label' / 'images'
     multiple_label_dir_labels = Path(OUTPUT_DIR) / 'multiple_label' / 'labels'
-    multiple_label_dir_images.mkdir(parents=True, exist_ok=True)
-    multiple_label_dir_labels.mkdir(parents=True, exist_ok=True)
     
-    # Move image - construct full source path from IMAGES_DIR
-    if image_file is not None:
-        src_img = Path(IMAGES_DIR) / image_file
-        if src_img.exists():
-            dest_img = multiple_label_dir_images / image_file
-            src_img.replace(dest_img)
-            print(f"MOVE_MULTIPLE_LABEL: Moved image {image_file} to {dest_img}")
+    # Move image
+    if move_file(image_file, IMAGES_DIR, multiple_label_dir_images):
+        print(f"MOVE_MULTIPLE_LABEL: Moved image {image_file} to {multiple_label_dir_images}")
     
-    # Move label - construct full source path from LABELS_DIR
-    if label_file is not None:
-        src_lbl = Path(LABELS_DIR) / label_file
-        if src_lbl.exists():
-            dest_lbl = multiple_label_dir_labels / label_file
-            src_lbl.replace(dest_lbl)
-            print(f"MOVE_MULTIPLE_LABEL: Moved label {label_file} to {dest_lbl}")
+    # Move label
+    if move_file(label_file, LABELS_DIR, multiple_label_dir_labels):
+        print(f"MOVE_MULTIPLE_LABEL: Moved label {label_file} to {multiple_label_dir_labels}")
 
 def filter_empty_labels(df):
     """
@@ -83,18 +97,10 @@ def filter_empty_labels(df):
     print(f"FILTER_EMPTY_LABELS: {len(empty_df)} images without labels")
     for _, row in empty_df.iterrows():
         print(f"FILTER_EMPTY_LABELS:Moving image: {row['image']} and label: {row['label']}")
-        # Move image - construct full source path from IMAGES_DIR
-        if row['image'] is not None:
-            src_img = Path(IMAGES_DIR) / row['image']
-            if src_img.exists():
-                dest_img = empty_label_dir_images / row['image']
-                src_img.replace(dest_img)
-        # Move label (if it exists) - construct full source path from LABELS_DIR
-        if row['label'] is not None:
-            src_lbl = Path(LABELS_DIR) / row['label']
-            if src_lbl.exists():
-                dest_lbl = empty_label_dir_labels / row['label']
-                src_lbl.replace(dest_lbl)
+        # Move image
+        move_file(row['image'], IMAGES_DIR, empty_label_dir_images)
+        # Move label (if it exists)
+        move_file(row['label'], LABELS_DIR, empty_label_dir_labels)
     print(f"FILTER_EMPTY_LABELS:Moved {len(empty_df)} images and labels to {empty_label_dir_images} and {empty_label_dir_labels}")
 
 def filter_by_category(df, category):
@@ -118,18 +124,10 @@ def filter_by_category(df, category):
     print(f"FILTER_BY_CATEGORY: {len(category_df)} images with category {category} ({category_name})")
     for _, row in category_df.iterrows():
         print(f"FILTER_BY_CATEGORY: Moving image: {row['image']} and label: {row['label']}")
-        # Move image - construct full source path from IMAGES_DIR
-        if row['image'] is not None:
-            src_img = Path(IMAGES_DIR) / row['image']
-            if src_img.exists():
-                dest_img = category_dir_images / row['image']
-                src_img.replace(dest_img)
-        # Move label (if it exists) - construct full source path from LABELS_DIR
-        if row['label'] is not None:
-            src_lbl = Path(LABELS_DIR) / row['label']
-            if src_lbl.exists():
-                dest_lbl = category_dir_labels / row['label']
-                src_lbl.replace(dest_lbl)
+        # Move image
+        move_file(row['image'], IMAGES_DIR, category_dir_images)
+        # Move label (if it exists)
+        move_file(row['label'], LABELS_DIR, category_dir_labels)
     print(f"FILTER_BY_CATEGORY: Moved {len(category_df)} images and labels to {category_dir_images} and {category_dir_labels}")
 
 
@@ -216,7 +214,7 @@ def create_df_from_images_and_labels(images, labels, categories):
 
 df = create_df_from_images_and_labels(images, labels, CATEGORIES)
 
-print("="*60 + "\n")
+print("="*60)
 print(f"DF: {df.columns}\n",df.head())
 print("="*60 + "\n")
 
