@@ -104,18 +104,17 @@ def filter_by_category(df, category):
     @param category: The category to filter by
     """
     # Move images and labels with the given category to OUTPUT_DIR/{category}/{images,labels}
-    category_dir_images = Path(OUTPUT_DIR) / str(category) / 'images'
-    category_dir_labels = Path(OUTPUT_DIR) / str(category) / 'labels'
-    category_dir_images.mkdir(parents=True, exist_ok=True)
-    category_dir_labels.mkdir(parents=True, exist_ok=True)
-
-    category_df = df[df['category'] == category]
-    # Reverse lookup: find category name from category ID
     category_name = None
     for name, cat_id in CATEGORIES.items():
         if cat_id == category:
             category_name = name
             break
+    category_dir_images = Path(OUTPUT_DIR) / f"{str(category)}_{category_name}" / 'images'
+    category_dir_labels = Path(OUTPUT_DIR) / f"{str(category)}_{category_name}" / 'labels'
+    category_dir_images.mkdir(parents=True, exist_ok=True)
+    category_dir_labels.mkdir(parents=True, exist_ok=True)
+
+    category_df = df[df['category'] == category]
     print(f"FILTER_BY_CATEGORY: {len(category_df)} images with category {category} ({category_name})")
     for _, row in category_df.iterrows():
         print(f"FILTER_BY_CATEGORY: Moving image: {row['image']} and label: {row['label']}")
@@ -174,11 +173,21 @@ def create_df_from_images_and_labels(images, labels, categories):
                         category_id_out = int(category_id) if category_id is not None else None
                     except Exception:
                         category_id_out = category_id
+                    
+                    # Look up category name from category ID
+                    category_name = None
+                    if category_id_out is not None:
+                        for name, cat_id in categories.items():
+                            if cat_id == category_id_out:
+                                category_name = name
+                                break
+                    
                     df_rows.append({
                         'image': image_file,
                         'label': label_file,
                         'label_empty': label_empty,
                         'category': category_id_out,
+                        'category_name': category_name,
                         'bbox': bbox
                     })
             else:
@@ -188,6 +197,7 @@ def create_df_from_images_and_labels(images, labels, categories):
                     'label': label_file,
                     'label_empty': True,
                     'category': None,
+                    'category_name': None,
                     'bbox': None
                 })
         else:
@@ -198,16 +208,19 @@ def create_df_from_images_and_labels(images, labels, categories):
                 'label': None,
                 'label_empty': True,
                 'category': None,
+                'category_name': None,
                 'bbox': None
             })
-    df = pd.DataFrame(df_rows, columns=['image', 'label', 'label_empty', 'category', 'bbox'])
+    df = pd.DataFrame(df_rows, columns=['image', 'label', 'label_empty', 'category', 'category_name', 'bbox'])
     return df
 
 df = create_df_from_images_and_labels(images, labels, CATEGORIES)
 
-print("DF: ",df.head())
-
+print("="*60 + "\n")
+print(f"DF: {df.columns}\n",df.head())
+print("="*60 + "\n")
 
 filter_empty_labels(df)
+# filter_by_category(df, 3)
 filter_by_category(df, 0)
 filter_by_category(df, 4)
